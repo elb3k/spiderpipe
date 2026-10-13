@@ -2,7 +2,7 @@ class Spiderpipe < Formula
   desc "Stream whatever is piped into stdin to a live web page"
   homepage "https://github.com/elb3k/spiderpipe"
   url "https://github.com/elb3k/spiderpipe/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "957c015bcae115af92d4ec6e15e778a62b8fe162d6fe29c8b9bef0bade32501e"
+  sha256 "d1812d4be50ffabe843325582fe936c4b9bdd72bdd26a9561d80428aa92ecb14"
   head "https://github.com/elb3k/spiderpipe.git", branch: "main"
 
   depends_on "rust" => :build
