@@ -1,0 +1,38 @@
+# When a version tag (v*) is pushed, point the Homebrew formula at that tag's
+# source tarball and commit the new url and sha256 to main.
+name: Update Homebrew formula
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  formula:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update url and sha256
+        run: |
+          url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz"
+          curl -fsSL --retry 5 --retry-all-errors -o source.tar.gz "$url"
+          sha=$(sha256sum source.tar.gz | cut -d' ' -f1)
+          rm source.tar.gz
+          sed -i -E \
+            -e "s|^  url \".*\"|  url \"${url}\"|" \
+            -e "s|^  sha256 \".*\"|  sha256 \"${sha}\"|" \
+            Formula/spiderpipe.rb
+          git diff
+
+      - name: Commit and push
+        run: |
+          git diff --quiet && { echo "formula already up to date"; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Formula: ${GITHUB_REF_NAME}"
+          git push origin main

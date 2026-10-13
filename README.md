@@ -74,17 +74,10 @@ By default, only this machine can connect. With `--remote`, anyone on your netwo
 
 ## Releasing
 
-1. Update `version` in `Cargo.toml` and commit.
-2. Tag the release and push the tag:
-   ```sh
-   git tag v0.1.0 && git push origin v0.1.0
-   ```
-3. Compute the checksum of the source tarball that GitHub creates:
-   ```sh
-   curl -sL https://github.com/elb3k/spiderpipe/archive/refs/tags/v0.1.0.tar.gz | shasum -a 256
-   ```
-4. In `Formula/spiderpipe.rb`, update `url` and `sha256`, then commit and push.
-5. Check the formula:
-   ```sh
-   brew install --build-from-source spiderpipe && brew test spiderpipe
-   ```
+```sh
+make tag-release VERSION=0.2.0
+```
+
+This bumps `version` in `Cargo.toml`, commits, tags `v0.2.0`, and pushes `main` and the tag. The push starts the [formula workflow](.github/workflows/formula.yml), which downloads the tag's source tarball, writes its `url` and `sha256` into `Formula/spiderpipe.rb`, and commits that to `main`. After about a minute, run `git pull` to get that commit. Then `brew upgrade spiderpipe` installs the new version.
+
+The formula cannot hold the checksum of a tarball that contains the formula itself. So the formula update is always a separate commit after the tag. Never move or re-push a tag that was already released: that changes the tarball and breaks the checksum.
