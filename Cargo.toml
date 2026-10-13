@@ -2,6 +2,8 @@
 name = "spiderpipe"
 version = "0.1.0"
 edition = "2021"
+description = "Stream whatever is piped into stdin to a live web page"
+repository = "https://github.com/elb3k/spiderpipe"
 
 [dependencies]
 axum = "0.8.9"

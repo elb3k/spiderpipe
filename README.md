@@ -14,7 +14,7 @@ Open http://localhost:3000 and new lines appear as the command writes them.
 ### Homebrew
 
 ```sh
-brew tap OWNER/spiderpipe https://github.com/OWNER/spiderpipe
+brew tap elb3k/spiderpipe https://github.com/elb3k/spiderpipe
 brew install spiderpipe
 ```
 
@@ -81,7 +81,7 @@ By default, only this machine can connect. With `--remote`, anyone on your netwo
    ```
 3. Compute the checksum of the source tarball that GitHub creates:
    ```sh
-   curl -sL https://github.com/OWNER/spiderpipe/archive/refs/tags/v0.1.0.tar.gz | shasum -a 256
+   curl -sL https://github.com/elb3k/spiderpipe/archive/refs/tags/v0.1.0.tar.gz | shasum -a 256
    ```
 4. In `Formula/spiderpipe.rb`, update `url` and `sha256`, then commit and push.
 5. Check the formula:
