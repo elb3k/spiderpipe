@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spiderpipe</title>
+<style>
+  :root { --bg: #0d1117; --fg: #c9d1d9; --muted: #6e7681; --accent: #3fb950; --bar: #161b22; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  header { position: sticky; top: 0; display: flex; gap: 16px; align-items: center; padding: 8px 16px; background: var(--bar); border-bottom: 1px solid #30363d; }
+  header b { color: var(--accent); }
+  #status::before { content: "●"; margin-right: 6px; }
+  #status.live::before { color: var(--accent); }
+  #status.ended::before, #status.lost::before { color: var(--muted); }
+  #count { color: var(--muted); margin-left: auto; }
+  .end { color: var(--muted); }
+  #out { margin: 0; padding: 8px 16px 24px; white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+<header><b>spiderpipe</b><span id="status">connecting</span><span id="count">0 lines</span></header>
+<pre id="out"></pre>
+<script>
+  const out = document.getElementById('out');
+  const status = document.getElementById('status');
+  const count = document.getElementById('count');
+  const ansi = /\x1b\[[0-9;?]*[A-Za-z]/g;
+  let lines = 0;
+
+  const setStatus = (cls, text) => { status.className = cls; status.textContent = text; };
+  const atBottom = () => innerHeight + scrollY >= document.body.scrollHeight - 40;
+
+  const es = new EventSource('/events');
+  es.onopen = () => setStatus('live', 'live');
+  es.onmessage = (e) => {
+    const stick = atBottom();
+    out.append(e.data.replace(ansi, '') + '\n');
+    count.textContent = `${++lines} lines`;
+    if (stick) scrollTo(0, document.body.scrollHeight);
+  };
+  es.addEventListener('eof', () => {
+    es.close();
+    setStatus('ended', 'input ended');
+    const stick = atBottom();
+    const end = document.createElement('span');
+    end.className = 'end';
+    end.textContent = '── input ended ──\n';
+    out.append(end);
+    if (stick) scrollTo(0, document.body.scrollHeight);
+  });
+  es.onerror = () => { es.close(); setStatus('lost', 'disconnected'); };
+</script>
+</body>
+</html>
