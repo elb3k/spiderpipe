@@ -5,49 +5,284 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>spiderpipe</title>
 <style>
-  :root { --bg: #0d1117; --fg: #c9d1d9; --muted: #6e7681; --accent: #3fb950; --bar: #161b22; }
+  :root {
+    --bg: #0d1117; --fg: #c9d1d9; --muted: #6e7681; --accent: #3fb950; --bar: #161b22; --line: #30363d;
+    --red: #ff7b72; --yellow: #d29922; --blue: #79c0ff; --purple: #d2a8ff; --cyan: #56d4dd; --green: #7ee787; --string: #a5d6ff;
+  }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
-  header { position: sticky; top: 0; display: flex; gap: 16px; align-items: center; padding: 8px 16px; background: var(--bar); border-bottom: 1px solid #30363d; }
+  header { position: sticky; top: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 16px; background: var(--bar); border-bottom: 1px solid var(--line); }
   header b { color: var(--accent); }
   #status::before { content: "●"; margin-right: 6px; }
   #status.live::before { color: var(--accent); }
   #status.ended::before, #status.lost::before { color: var(--muted); }
   #count { color: var(--muted); margin-left: auto; }
-  .end { color: var(--muted); }
-  #out { margin: 0; padding: 8px 16px 24px; white-space: pre-wrap; word-break: break-all; }
+  .tools { display: flex; gap: 4px; align-items: center; }
+  input, select, button { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; }
+  #filter { width: 240px; max-width: 50vw; }
+  #filter.bad { border-color: var(--red); }
+  button { cursor: pointer; color: var(--muted); min-width: 30px; }
+  button[aria-pressed="true"] { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+  #out { padding: 8px 16px 0; white-space: pre-wrap; word-break: break-all; }
+  #end { padding: 0 16px 24px; color: var(--muted); }
+  .ln:empty::before { content: " "; }
+  .ctx { opacity: 0.55; }
+  .sep { color: var(--muted); }
+  .context { display: flex; gap: 4px; align-items: center; color: var(--muted); }
+  .context input { width: 3.5em; }
+
+  /* Prism tokens; https://prismjs.com/tokens.html */
+  .token.comment, .token.prolog, .token.doctype, .token.cdata, .token.punctuation, .token.operator { color: var(--muted); }
+  .token.property, .token.tag, .token.attr-name, .token.key, .token.atrule, .token.selector { color: var(--blue); }
+  .token.string, .token.char, .token.attr-value, .token.file-path { color: var(--string); }
+  .token.number, .token.boolean, .token.constant, .token.null, .token.symbol { color: var(--purple); }
+  .token.keyword, .token.builtin, .token.important { color: var(--red); }
+  .token.function { color: var(--purple); }
+  .token.class-name { color: var(--yellow); }
+  .token.regex, .token.variable, .token.entity { color: var(--cyan); }
+  .token.date, .token.time { color: var(--muted); }
+  .token.url { color: var(--cyan); text-decoration: underline; }
+  .token.exception, .token.level.error { color: var(--red); font-weight: bold; }
+  .token.level.warning { color: var(--yellow); font-weight: bold; }
+  .token.level.info { color: var(--blue); }
+  .token.level.debug { color: var(--purple); }
+  .token.level.trace { color: var(--muted); }
+  .token.inserted { color: var(--green); }
+  .token.deleted { color: var(--red); }
+  .token.coord { color: var(--cyan); }
+  .token.bold { font-weight: bold; }
 </style>
 </head>
 <body>
-<header><b>spiderpipe</b><span id="status">connecting</span><span id="count">0 lines</span></header>
-<pre id="out"></pre>
+<header>
+  <b>spiderpipe</b><span id="status">connecting</span>
+  <span class="tools">
+    <input id="filter" type="search" placeholder="Pattern, like grep  ( / )" spellcheck="false" autocomplete="off" aria-label="Filter pattern (a regular expression, like grep)">
+    <button data-flag="i" aria-pressed="false" title="-i: ignore case">-i</button>
+    <button data-flag="v" aria-pressed="false" title="-v: show lines that do not match">-v</button>
+    <button data-flag="w" aria-pressed="false" title="-w: match only whole words">-w</button>
+    <button data-flag="x" aria-pressed="false" title="-x: match only whole lines">-x</button>
+    <button data-flag="F" aria-pressed="false" title="-F: pattern is plain text, not a regular expression">-F</button>
+  </span>
+  <span class="context">
+    <label title="Lines to show before each match, like grep -B">-B <input id="before" type="number" min="0" max="999" value="0"></label>
+    <label title="Lines to show after each match, like grep -A">-A <input id="after" type="number" min="0" max="999" value="0"></label>
+  </span>
+  <select id="syntax" aria-label="Syntax highlighting">
+    <option value="plain">Plain</option>
+    <option value="log">Log</option>
+    <option value="json">JSON</option>
+    <option value="diff">Diff</option>
+    <option value="yaml">YAML</option>
+    <option value="toml">TOML</option>
+    <option value="bash">Shell</option>
+    <option value="javascript">JavaScript</option>
+    <option value="python">Python</option>
+    <option value="sql">SQL</option>
+    <option value="docker">Dockerfile</option>
+    <option value="markup">HTML / XML</option>
+  </select>
+  <span id="count">0 lines</span>
+</header>
+<div id="out"></div>
+<div id="end" hidden>── input ended ──</div>
+<script>window.Prism = { manual: true };</script>
+<script src="/prism.js"></script>
 <script>
-  const out = document.getElementById('out');
-  const status = document.getElementById('status');
-  const count = document.getElementById('count');
+  const $ = (id) => document.getElementById(id);
+  const out = $('out'), status = $('status'), count = $('count'), filterInput = $('filter'), syntaxSelect = $('syntax');
+  // grep options as toggle buttons, keyed by their grep flag letter.
+  const toggles = Object.fromEntries([...document.querySelectorAll('[data-flag]')].map((b) => [b.dataset.flag, b]));
+  const beforeInput = $('before'), afterInput = $('after');
   const ansi = /\x1b\[[0-9;?]*[A-Za-z]/g;
-  let lines = 0;
+
+  const lines = [];   // every line received, ANSI codes removed
+  let pending = [];   // lines received since the last frame
+  let shown = 0;      // lines that pass the filter
+
+  // Context lines around each match, like grep -B / -A.
+  let before = 0, after = 0;
+  let lastMatch = -Infinity;  // index of the newest matching line
+  let lastShown = -1;         // index of the newest line on the page
+
+  let syntax = 'plain';  // a Prism language name, or 'plain'
+  let matches = () => true;
+
+  // Highlighting is per line, so constructs that span lines (block comments,
+  // pretty-printed JSON) are not recognised across the line break.
+  function renderLine(text, cls = 'ln') {
+    const el = document.createElement('div');
+    el.className = cls;
+    const grammar = window.Prism?.languages[syntax];
+    if (grammar) el.innerHTML = Prism.highlight(text, grammar, syntax);
+    else el.textContent = text;
+    return el;
+  }
+
+  // Same rules as grep -E: the pattern is a regular expression, case-sensitive unless -i.
+  // An empty pattern shows every line.
+  function buildFilter() {
+    const q = filterInput.value;
+    filterInput.classList.remove('bad');
+    filterInput.title = '';
+    matches = () => true;
+    if (!q) return;
+    let source = pressed('F') ? q.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') : q;
+    if (pressed('x')) source = `^(?:${source})$`;
+    else if (pressed('w')) source = `\\b(?:${source})\\b`;
+    let re;
+    try {
+      re = new RegExp(source, pressed('i') ? 'i' : '');
+    } catch (e) {
+      filterInput.classList.add('bad');
+      filterInput.title = e.message;
+      return;
+    }
+    const invert = pressed('v');
+    matches = (t) => re.test(t) !== invert;
+  }
+
 
   const setStatus = (cls, text) => { status.className = cls; status.textContent = text; };
   const atBottom = () => innerHeight + scrollY >= document.body.scrollHeight - 40;
+  const toBottom = () => scrollTo(0, document.body.scrollHeight);
+  const updateCount = () => {
+    count.textContent = shown === lines.length ? `${lines.length} lines` : `${shown} of ${lines.length} lines`;
+  };
+
+  // Run `fn` (which changes the page) and keep following the output if the viewer was at the bottom.
+  function stickWhile(fn) {
+    const stick = atBottom();
+    fn();
+    if (stick) toBottom();
+  }
+
+  // Add line `i` to `frag` if it matches or is within the context of a match.
+  // Lines arrive in order, so `before` context is taken from lines already received.
+  function place(i, frag) {
+    const t = lines[i];
+    if (matches(t)) {
+      const start = Math.max(lastShown + 1, i - before);
+      if ((before || after) && lastShown >= 0 && start > lastShown + 1) {
+        const sep = document.createElement('div');
+        sep.className = 'sep';
+        sep.textContent = '--';
+        frag.append(sep);
+      }
+      for (let k = start; k < i; k++) frag.append(renderLine(lines[k], 'ln ctx'));
+      frag.append(renderLine(t));
+      shown++;
+      lastMatch = lastShown = i;
+    } else if (i - lastMatch <= after) {
+      frag.append(renderLine(t, 'ln ctx'));
+      lastShown = i;
+    }
+  }
+
+  function rerender() {
+    stickWhile(() => {
+      const frag = document.createDocumentFragment();
+      shown = 0;
+      lastMatch = -Infinity;
+      lastShown = -1;
+      for (let i = 0; i < lines.length; i++) place(i, frag);
+      out.replaceChildren(frag);
+      updateCount();
+    });
+    writeUrl();
+  }
+
+  // The page's filter and syntax live in the URL, using grep's flag letters, so a link
+  // reopens the same view: /?e=error&i&A=2&B=1&syntax=log. A flag with no value is on.
+  // -C sets both -A and -B. The server redirects a URL with no query to the --web-*
+  // defaults, so a view with nothing set is written as /?e= to keep it from being redirected.
+  function readUrl() {
+    const q = new URLSearchParams(location.search);
+    filterInput.value = q.get('e') ?? '';
+    for (const [flag, btn] of Object.entries(toggles)) btn.setAttribute('aria-pressed', String(q.has(flag)));
+    beforeInput.value = q.get('B') ?? q.get('C') ?? 0;
+    afterInput.value = q.get('A') ?? q.get('C') ?? 0;
+    let saved = null;
+    try { saved = localStorage.getItem('spiderpipe.syntax'); } catch {}
+    const known = (v) => [...syntaxSelect.options].some((o) => o.value === v);
+    syntax = [q.get('syntax'), saved].find(known) ?? 'plain';
+    syntaxSelect.value = syntax;
+  }
+
+  function writeUrl() {
+    const parts = [];
+    if (filterInput.value) parts.push('e=' + encodeURIComponent(filterInput.value));
+    for (const flag of Object.keys(toggles)) if (pressed(flag)) parts.push(flag);
+    if (after) parts.push('A=' + after);
+    if (before) parts.push('B=' + before);
+    if (syntax !== 'plain') parts.push('syntax=' + syntax);
+    const url = '?' + (parts.join('&') || 'e=');
+    if (url !== location.search) history.replaceState(null, '', url);
+  }
+
+  // Batch incoming lines into one DOM update per frame; history replay can send thousands at once.
+  function flush() {
+    const batch = pending;
+    pending = [];
+    stickWhile(() => {
+      const frag = document.createDocumentFragment();
+      for (const t of batch) place(lines.push(t) - 1, frag);
+      out.append(frag);
+      updateCount();
+    });
+  }
+
+  const pressed = (name) => toggles[name].getAttribute('aria-pressed') === 'true';
+  for (const [name, btn] of Object.entries(toggles)) {
+    btn.addEventListener('click', () => {
+      btn.setAttribute('aria-pressed', String(!pressed(name)));
+      buildFilter();
+      rerender();
+    });
+  }
+
+  let filterTimer;
+  filterInput.addEventListener('input', () => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => { buildFilter(); rerender(); }, 120);
+  });
+  function readContext() {
+    const n = (el) => Math.min(999, Math.max(0, parseInt(el.value, 10) || 0));
+    before = n(beforeInput);
+    after = n(afterInput);
+  }
+  for (const input of [beforeInput, afterInput]) {
+    input.addEventListener('input', () => { readContext(); rerender(); });
+  }
+  filterInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { filterInput.value = ''; buildFilter(); rerender(); filterInput.blur(); }
+  });
+  addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== filterInput && !/^(INPUT|SELECT)$/.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      filterInput.focus();
+    }
+  });
+
+  syntaxSelect.addEventListener('change', () => {
+    syntax = syntaxSelect.value;
+    try { localStorage.setItem('spiderpipe.syntax', syntaxSelect.value); } catch {}
+    rerender();
+  });
+  readUrl();
+  buildFilter();
+  readContext();
 
   const es = new EventSource('/events');
   es.onopen = () => setStatus('live', 'live');
   es.onmessage = (e) => {
-    const stick = atBottom();
-    out.append(e.data.replace(ansi, '') + '\n');
-    count.textContent = `${++lines} lines`;
-    if (stick) scrollTo(0, document.body.scrollHeight);
+    if (!pending.length) requestAnimationFrame(flush);
+    pending.push(e.data.replace(ansi, ''));
   };
   es.addEventListener('eof', () => {
     es.close();
     setStatus('ended', 'input ended');
-    const stick = atBottom();
-    const end = document.createElement('span');
-    end.className = 'end';
-    end.textContent = '── input ended ──\n';
-    out.append(end);
-    if (stick) scrollTo(0, document.body.scrollHeight);
+    requestAnimationFrame(() => stickWhile(() => { $('end').hidden = false; }));
   });
   es.onerror = () => { es.close(); setStatus('lost', 'disconnected'); };
 </script>
